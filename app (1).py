@@ -41,7 +41,7 @@ EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 # Gemini API anahtarını Hugging Face "Secrets" kısmından alacağız
 # Hugging Face üzerinde: Settings -> Variables -> add new variable
-# Key: GOOGLE_API_KEY, Value: AIzaSyAYvYqwvqia4qkrmTwd7oxxBMXd4Y3sbeE
+# Key: GOOGLE_API_KEY, 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # ===============================
