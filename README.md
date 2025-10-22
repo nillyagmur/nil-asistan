@@ -13,6 +13,7 @@ Bu proje, **Akbank GenAI Bootcamp: Yeni Nesil Proje Kampı** kapsamında gelişt
 Projenin çalışan web arayüzüne (web arayüzü) aşağıdaki linkten erişebilirsiniz. Bu link, projenin Hugging Face Spaces üzerinde dağıtılmış (deploy edilmiş) halidir.
 
 **➡️ UYGULAMA LİNKİ:** https://huggingface.co/spaces/nily123/nil-asistan
+<img width="1882" height="916" alt="{4F08CBC7-E97D-45D2-9ECC-08E0FBA139C5}" src="https://github.com/user-attachments/assets/c0b317fb-c6da-46a9-9a8b-3d54b0b3762c" />
 
 ---
 
