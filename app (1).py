@@ -1,56 +1,52 @@
 """
-RAG Tabanlı CV Chatbot - Gemini Versiyonu
-Nil Yağmur Muslu'nun CV bilgilerini kullanarak sorulara cevap verir.
+🤖 RAG Tabanlı CV Chatbot - OpenAI/Google Gemini Versiyonu
+Bu uygulama Nil Yağmur Muslu'nun CV bilgilerini kullanarak sorulara cevap verir.
+API Key artık güvenli bir şekilde .env veya Hugging Face Secrets üzerinden alınır.
 """
 
 # ===============================
-# BÖLÜM 1: Gerekli Kütüphanelerin Yüklenmesi
+# BÖLÜM 1: Gerekli Kütüphaneler
 # ===============================
 import os
-import pickle
+from dotenv import load_dotenv  # .env dosyasından API key yüklemek için
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')  # gereksiz uyarıları gizle
 
-import streamlit as st
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
+import streamlit as st  # web arayüzü
+from langchain.text_splitter import RecursiveCharacterTextSplitter  # metni parçalara bölmek için
+from langchain_community.vectorstores import FAISS  # vektör veri tabanı
 try:
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.embeddings import HuggingFaceEmbeddings  # embedding modeli
 except ImportError:
     from langchain.embeddings import HuggingFaceEmbeddings
-
-# Google Gemini için
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-# ===============================
-# BÖLÜM 2: Streamlit Sayfa Konfigürasyonu
-# ===============================
-st.set_page_config(
-    page_title="Nil Yağmur Muslu - CV Chatbot",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+from langchain_google_genai import ChatGoogleGenerativeAI  # Google Gemini LLM
+import pickle  # veri tabanı kaydetmek ve yüklemek için
 
 # ===============================
-# BÖLÜM 3: Sabit Değişkenler
+# BÖLÜM 2: API Key Yükleme
 # ===============================
-DATA_FILE = "data.txt"
-FAISS_INDEX_PATH = "./faiss_index.pkl"
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# .env dosyasını yükle (lokalde)
+load_dotenv()
 
-# Gemini API anahtarını Hugging Face "Secrets" kısmından alacağız
-# Hugging Face üzerinde: Settings -> Variables -> add new variable
-# Key: GOOGLE_API_KEY, 
+# Hugging Face Secrets veya .env üzerinden API key al
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# ===============================
+# BÖLÜM 3: Sabitler
+# ===============================
+DATA_FILE = "data.txt"  # CV verisi
+FAISS_INDEX_PATH = "./faiss_index.pkl"  # FAISS index dosyası
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 # ===============================
 # BÖLÜM 4: Fonksiyonlar
 # ===============================
-
-@st.cache_resource
+@st.cache_resource  # tekrar tekrar hesaplamamak için
 def load_vector_store():
-    """FAISS vector store'u yükler veya oluşturur."""
+    """
+    FAISS vektör veritabanını yükler veya oluşturur.
+    Eğer diskte mevcutsa yükler, yoksa data.txt'den oluşturur.
+    """
     if os.path.exists(FAISS_INDEX_PATH):
         with open(FAISS_INDEX_PATH, 'rb') as f:
             vectorstore = pickle.load(f)
@@ -59,6 +55,7 @@ def load_vector_store():
         with open(DATA_FILE, 'r', encoding='utf-8') as file:
             text = file.read()
 
+        # Metni chunk'lara ayır
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
             chunk_overlap=100,
@@ -66,67 +63,77 @@ def load_vector_store():
         )
         chunks = text_splitter.split_text(text)
 
+        # Embeddings oluştur
         embeddings = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL,
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
 
+        # FAISS index oluştur
         vectorstore = FAISS.from_texts(texts=chunks, embedding=embeddings)
 
+        # Kaydet
         with open(FAISS_INDEX_PATH, 'wb') as f:
             pickle.dump(vectorstore, f)
 
         return vectorstore
 
-
 def get_response(question: str, vectorstore):
-    """Kullanıcı sorusuna Gemini kullanarak RAG yanıtı üretir."""
+    """
+    Kullanıcı sorusuna RAG + Google Gemini kullanarak cevap üretir.
+    """
     try:
+        # LLM yapılandırması
         llm = ChatGoogleGenerativeAI(
-            api_key=GOOGLE_API_KEY,
-            model="gemini-2.0-flash",
+            model="gemini-pro",
             temperature=0.3,
-            max_output_tokens=512
+            google_api_key=GOOGLE_API_KEY  # gizli anahtar kullanılıyor
         )
 
+        # En alakalı chunk'ları bul
         retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
         relevant_docs = retriever.invoke(question)
+
+        # Context oluştur
         context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-        prompt = f"""
-Sen Nil Yağmur Muslu'nun kişisel CV asistanısın. Verilen bağlam bilgilerini kullanarak soruları yanıtla.
+        # Prompt oluştur
+        prompt = f"""Sen Nil Yağmur Muslu'nun kişisel CV asistanısın.
 BAĞLAM:
 {context}
-
 SORU: {question}
-
 YANITLAMA KURALLARI:
-1. Sadece verilen bağlam bilgilerini kullan.
-2. Türkçe olarak yanıtla.
-3. Samimi ama profesyonel bir üslup kullan.
-4. Eğer bilgi bağlamda yoksa, "Bu konuda bilgim yok" de.
-5. Kısa ve net yanıtlar ver.
-YANIT:
-"""
+1. Sadece bağlamı kullan
+2. Türkçe yanıtla
+3. Samimi ve doğal ol
+4. Bilgi yoksa "Bu konuda bilgim yok" de
+5. Kısa ve öz ol
+YANIT:"""
 
+        # Cevap üret
         response = llm.invoke(prompt)
         return response.content
 
     except Exception as e:
-        return f"❌ Hata: {e}"
-
+        return f"❌ Hata: {str(e)}"
 
 # ===============================
-# BÖLÜM 5: Ana Uygulama
+# BÖLÜM 5: Web Arayüzü
 # ===============================
 def main():
+    st.set_page_config(
+        page_title="Nil Yağmur Muslu - CV Chatbot",
+        page_icon="🤖",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
     st.title("🤖 Nil Yağmur Muslu - CV Chatbot")
     st.markdown("### Kişisel Asistan")
-    st.markdown("---")
+    st.info("💬 **Merhaba!** Ben Nil Yağmur Muslu'nun CV asistanıyım. Sorularını sorabilirsin.")
 
-    st.info("💬 **Merhaba!** Ben Nil Yağmur Muslu'nun CV asistanıyım. Onun hakkında merak ettiklerinizi sorabilirsiniz.")
-
+    # Vector store yükle
     try:
         with st.spinner("⏳ Vector store yükleniyor..."):
             vectorstore = load_vector_store()
@@ -135,32 +142,36 @@ def main():
         st.error(f"❌ Hata: {e}")
         return
 
+    # Chat geçmişi
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    # Chat geçmişini göster
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # Kullanıcı girişi
     if prompt := st.chat_input("Sorunuzu buraya yazın..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
+        # Asistan cevabı
         with st.chat_message("assistant"):
             with st.spinner("💭 Düşünüyorum..."):
                 response = get_response(prompt, vectorstore)
             st.markdown(response)
-
         st.session_state.messages.append({"role": "assistant", "content": response})
 
+    # Footer
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center'><p>💻 Nil Yağmur Muslu'nun kişisel CV asistanı</p></div>",
         unsafe_allow_html=True
     )
 
-
+# Eğer doğrudan çalıştırılırsa
 if __name__ == "__main__":
     main()
 
