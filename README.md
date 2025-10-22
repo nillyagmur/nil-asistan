@@ -14,6 +14,7 @@ Projenin çalışan web arayüzüne (web arayüzü) aşağıdaki linkten erişeb
 
 **➡️ UYGULAMA LİNKİ:** https://huggingface.co/spaces/nily123/nil-asistan
 <img width="1882" height="916" alt="{4F08CBC7-E97D-45D2-9ECC-08E0FBA139C5}" src="https://github.com/user-attachments/assets/c0b317fb-c6da-46a9-9a8b-3d54b0b3762c" />
+<img width="1906" height="879" alt="{0689DF5C-46DB-4C19-8BAC-298E4EE63DA7}" src="https://github.com/user-attachments/assets/56c961e7-30ff-4fb9-88f7-052edf1544c4" />
 
 ---
 
